@@ -33,6 +33,32 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+
+# Agregar este bloque antes del chat_input
+uploaded_file = st.file_uploader("Sube una foto de tu ejercicio (opcional)", type=["jpg", "jpeg", "png"])
+
+if prompt := st.chat_input("¿En qué puedo ayudarte?"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # Preparar el contenido (Texto + Imagen si existe)
+    contenido = [prompt]
+    if uploaded_file:
+        import PIL.Image
+        img = PIL.Image.open(uploaded_file)
+        contenido.append(img)
+    
+    with st.chat_message("user"):
+        st.markdown(prompt)
+        if uploaded_file:
+            st.image(uploaded_file, caption="Imagen enviada", width=300)
+
+    with st.chat_message("assistant"):
+        # Enviamos tanto el texto como la imagen al modelo
+        response = st.session_state.chat.send_message(contenido)
+        st.markdown(response.text)
+        st.session_state.messages.append({"role": "assistant", "content": response.text})
+
+
 # 5. Interacción del usuario
 if prompt := st.chat_input("¿En qué ejercicio puedo ayudarte hoy?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
