@@ -21,7 +21,7 @@ st.title("📐 SocratiMath Tutor")
 st.markdown("---")
 
 # 3. Configurar el modelo
-model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
+model = genai.GenerativeModel('gemini-3-flash', system_instruction=SYSTEM_PROMPT)
 
 # 4. Memoria del chat
 if "messages" not in st.session_state:
