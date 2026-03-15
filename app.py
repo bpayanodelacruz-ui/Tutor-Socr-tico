@@ -1,71 +1,63 @@
 import streamlit as st
 import google.generativeai as genai
+from PIL import Image # Aquí usamos Pillow para manejar imágenes
 
-# 1. Configuración de seguridad: Leemos la clave desde los Secrets
+# 1. Configuración de seguridad
 api_key = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=api_key)
 
-# 2. Instrucciones del Sistema (Tu método socrático)
+# 2. Instrucciones del Sistema (Reforzadas para imágenes)
 SYSTEM_PROMPT = """
-Eres "SocratiMath", un tutor experto en matemáticas que usa el método socrático.
-NUNCA des la respuesta final. Tu objetivo es guiar al estudiante con preguntas.
+Eres "SocratiMath", un tutor experto en matemáticas. 
+Si el usuario sube una imagen, analízala con cuidado, identifica el problema y guía al estudiante socráticamente.
 REGLAS:
-- Si el usuario te da un problema, identifica el primer paso y haz una pregunta sobre él.
+- NUNCA des la respuesta final.
+- Describe brevemente qué ves en la imagen para que el alumno sepa que entendiste.
+- Haz una pregunta sobre el primer paso lógico.
 - Usa LaTeX para fórmulas (ej. $x^2$).
-- Si el usuario se equivoca, ayúdale a ver el error con otra pregunta.
-- Sé breve y motivador.
 """
 
 st.set_page_config(page_title="SocratiMath", page_icon="📐")
-st.title("📐 SocratiMath Tutor")
-st.markdown("---")
+st.title("📐 SocratiMath: Tutor con Visión")
 
 # 3. Configurar el modelo
-model = genai.GenerativeModel('gemini-3-flash-preview', system_instruction=SYSTEM_PROMPT)
+model = genai.GenerativeModel('gemini-3-flash', system_instruction=SYSTEM_PROMPT)
 
 # 4. Memoria del chat
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.chat = model.start_chat(history=[])
 
+# --- NUEVO: Subida de archivos ---
+with st.sidebar:
+    st.header("Herramientas")
+    foto = st.file_uploader("Sube la foto de tu ejercicio", type=["jpg", "jpeg", "png"])
+    if st.button("Limpiar historial"):
+        st.session_state.messages = []
+        st.session_state.chat = model.start_chat(history=[])
+        st.rerun()
+
 # Mostrar mensajes anteriores
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-
-# Agregar este bloque antes del chat_input
-uploaded_file = st.file_uploader("Sube una foto de tu ejercicio (opcional)", type=["jpg", "jpeg", "png"])
-
-if prompt := st.chat_input("¿En qué puedo ayudarte?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Preparar el contenido (Texto + Imagen si existe)
-    contenido = [prompt]
-    if uploaded_file:
-        import PIL.Image
-        img = PIL.Image.open(uploaded_file)
-        contenido.append(img)
-    
-    with st.chat_message("user"):
-        st.markdown(prompt)
-        if uploaded_file:
-            st.image(uploaded_file, caption="Imagen enviada", width=300)
-
-    with st.chat_message("assistant"):
-        # Enviamos tanto el texto como la imagen al modelo
-        response = st.session_state.chat.send_message(contenido)
-        st.markdown(response.text)
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
-
-
 # 5. Interacción del usuario
-if prompt := st.chat_input("¿En qué ejercicio puedo ayudarte hoy?"):
+if prompt := st.chat_input("¿Qué vamos a resolver?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
+        if foto:
+            st.image(foto, width=300)
 
     with st.chat_message("assistant"):
-        response = st.session_state.chat.send_message(prompt)
+        # Si hay foto, enviamos [texto, imagen]
+        # Si no, solo texto
+        contenido = [prompt]
+        if foto:
+            img = Image.open(foto)
+            contenido.append(img)
+            
+        response = st.session_state.chat.send_message(contenido)
         st.markdown(response.text)
         st.session_state.messages.append({"role": "assistant", "content": response.text})
