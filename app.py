@@ -1,52 +1,45 @@
 import streamlit as st
 import google.generativeai as genai
 
-# Configuración de la página
-st.set_page_config(page_title="SocratiMath Tutor", page_icon="🦉")
-st.title("🦉 SocratiMath - Tu Tutor Socrático")
-st.write("¡Hola! Soy tu tutor de matemáticas. Dime, ¿qué problema vamos a resolver hoy?")
+# 1. Configuración de seguridad: Leemos la clave desde los Secrets
+api_key = st.secrets["GEMINI_API_KEY"]
+genai.configure(api_key=api_key)
 
-# Menú lateral para la clave de seguridad (API Key)
-st.sidebar.header("Configuración")
-st.sidebar.write("Para usar el tutor, necesitas tu clave gratuita de Google AI Studio.")
-api_key = st.sidebar.text_input("Ingresa tu Gemini API Key:", type="password")
-
-# El "Cerebro" socrático que redactamos
-instrucciones_sistema = """
-Eres "SocratiMath", un tutor experto en matemáticas, paciente y alentador. NUNCA resuelves los problemas por el estudiante.
-Debes utilizar EXCLUSIVAMENTE el método socrático. Guía al estudiante paso a paso hacia la solución mediante preguntas estratégicas.
-REGLAS ESTRICTAS:
-1. Prohibido dar respuestas finales o el resultado antes de que el estudiante llegue a él.
-2. Un paso a la vez: Haz una pregunta sobre el paso inmediato a resolver y espera.
-3. Si se equivoca, no digas solo "estás mal". Haz una pregunta que exponga el error en su lógica.
-4. Usa formato LaTeX para las matemáticas (ejemplo: $x^2 + y = 0$).
-5. Sé conciso y termina siempre con una pregunta clara.
+# 2. Instrucciones del Sistema (Tu método socrático)
+SYSTEM_PROMPT = """
+Eres "SocratiMath", un tutor experto en matemáticas que usa el método socrático.
+NUNCA des la respuesta final. Tu objetivo es guiar al estudiante con preguntas.
+REGLAS:
+- Si el usuario te da un problema, identifica el primer paso y haz una pregunta sobre él.
+- Usa LaTeX para fórmulas (ej. $x^2$).
+- Si el usuario se equivoca, ayúdale a ver el error con otra pregunta.
+- Sé breve y motivador.
 """
 
-if api_key:
-    # Conectar con Gemini
-    genai.configure(api_key=api_key)
-    modelo = genai.GenerativeModel('gemini-1.5-flash', system_instruction=instrucciones_sistema)
-    
-    # Iniciar la memoria del chat
-    if "chat" not in st.session_state:
-        st.session_state.chat = modelo.start_chat(history=[])
+st.set_page_config(page_title="SocratiMath", page_icon="📐")
+st.title("📐 SocratiMath Tutor")
+st.markdown("---")
 
-    # Mostrar el historial de mensajes en la pantalla
-    for mensaje in st.session_state.chat.history:
-        rol = "assistant" if mensaje.role == "model" else "user"
-        with st.chat_message(rol):
-            st.markdown(mensaje.parts[0].text)
+# 3. Configurar el modelo
+model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
 
-    # Caja de texto para que el usuario escriba
-    if prompt := st.chat_input("Escribe tu ecuación o problema aquí..."):
-        # Mostrar lo que escribió el usuario
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        
-        # Enviar a la IA y mostrar la respuesta
-        with st.chat_message("assistant"):
-            respuesta = st.session_state.chat.send_message(prompt)
-            st.markdown(respuesta.text)
-else:
-    st.warning("👈 Por favor, ingresa tu API Key en el menú lateral izquierdo para comenzar a chatear.")
+# 4. Memoria del chat
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    st.session_state.chat = model.start_chat(history=[])
+
+# Mostrar mensajes anteriores
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# 5. Interacción del usuario
+if prompt := st.chat_input("¿En qué ejercicio puedo ayudarte hoy?"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        response = st.session_state.chat.send_message(prompt)
+        st.markdown(response.text)
+        st.session_state.messages.append({"role": "assistant", "content": response.text})
