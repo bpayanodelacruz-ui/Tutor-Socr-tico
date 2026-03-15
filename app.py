@@ -21,7 +21,7 @@ st.set_page_config(page_title="SocratiMath", page_icon="📐")
 st.title("📐 SocratiMath: Tutor con Visión")
 
 # 3. Configurar el modelo
-model = genai.GenerativeModel('gemini-3-flash', system_instruction=SYSTEM_PROMPT)
+model = genai.GenerativeModel('gemini-3-flash-preview', system_instruction=SYSTEM_PROMPT)
 
 # 4. Memoria del chat
 if "messages" not in st.session_state:
